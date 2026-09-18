@@ -1,0 +1,3 @@
+[demo]
+# Replace with a reachable Linux VM address when you provision a VM.
+# demo-vm ansible_host=10.10.1.10 ansible_user=azureuser

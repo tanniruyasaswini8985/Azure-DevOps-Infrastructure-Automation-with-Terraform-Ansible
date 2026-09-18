@@ -1,0 +1,22 @@
+---
+- name: Basic Linux configuration example
+  hosts: demo
+  become: true
+
+  tasks:
+    - name: Gather operating system information
+      ansible.builtin.setup:
+        gather_subset:
+          - distribution
+
+    - name: Create DevOps demo directory
+      ansible.builtin.file:
+        path: /opt/devops-demo
+        state: directory
+        mode: "0755"
+
+    - name: Write automation marker
+      ansible.builtin.copy:
+        content: "Configured by Ansible from Azure DevOps automation pipeline.\n"
+        dest: /opt/devops-demo/automation.txt
+        mode: "0644"
