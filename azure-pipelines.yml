@@ -1,0 +1,70 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  terraformVersion: '1.9.8'
+
+stages:
+- stage: Validate
+  displayName: Validate IaC and Python
+  jobs:
+  - job: Validate
+    steps:
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - script: |
+        terraform -chdir=terraform init -backend=false
+        terraform -chdir=terraform fmt -check
+        terraform -chdir=terraform validate
+      displayName: Terraform validation
+
+    - script: |
+        python3 scripts/validate_environment.py
+      displayName: Python validation
+
+- stage: Plan
+  displayName: Terraform Plan
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: Plan
+    steps:
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: AzureCLI@2
+      displayName: Terraform plan
+      inputs:
+        azureSubscription: 'azure-service-connection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -e
+          terraform -chdir=terraform init -backend=false
+          terraform -chdir=terraform plan -out=tfplan
+          terraform -chdir=terraform show -no-color tfplan > $(Build.ArtifactStagingDirectory)/terraform-plan.txt
+
+    - publish: $(Build.ArtifactStagingDirectory)/terraform-plan.txt
+      artifact: terraform-plan
+
+# Apply is intentionally not automatic for this portfolio project.
+# To use it, add a controlled approval/environment process and run:
+# terraform -chdir=terraform apply tfplan
